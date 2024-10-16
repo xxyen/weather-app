@@ -1,95 +1,109 @@
 import React, { useState, useContext, useEffect } from "react";
-import { Pressable, ActivityIndicator, StyleSheet, Platform, ScrollView } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router"; 
+import { Pressable, ActivityIndicator, StyleSheet, Platform, ScrollView, Alert } from "react-native";
+import * as Location from 'expo-location';
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import WeatherDisplay from "../../../components/WeatherDisplay";
 import ForecastTable from "../../../components/ForecastTable";
 import { FavoritesContext } from "@/hooks/FavoritesContext";
-import { Text, View } from "@/components/Themed";  
-import { useThemeColor } from "@/components/Themed";
+import { Text, View } from "@/components/Themed";
 import * as ScreenOrientation from "expo-screen-orientation";
 
+const GEOAPIFY_API_KEY = '3229808f86fe4c93a92f063868e65f17';
+const WEATHER_API_KEY = 'c850ed0f8c7244de956214046240309';
 
 export default function WeatherScreen() {
   const router = useRouter();
-  const { zipCode: passedZipCode } = useLocalSearchParams(); 
-  const [zipCode, setZipCode] = useState(passedZipCode || ''); 
-  const [weatherData, setWeatherData] = useState(null); 
+  const { zipCode: passedZipCode } = useLocalSearchParams();
+  const [zipCode, setZipCode] = useState(passedZipCode || '');
+  const [weatherData, setWeatherData] = useState(null);
   const [isCelsius, setIsCelsius] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
   const { favorites, setFavorites } = useContext(FavoritesContext);
   const [isFavorite, setIsFavorite] = useState(false);
-
-  const apiKey = 'c850ed0f8c7244de956214046240309'; 
-
   const [isLandscape, setIsLandscape] = useState(false);
 
   const updateOrientation = (orientation: ScreenOrientation.Orientation) => {
-    if (
-      orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
-      orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
-    ) {
-      console.log("Landscape mode");
-      setIsLandscape(true);
-    } else {
-      console.log("Portrait mode");
-      setIsLandscape(false);
-    }
-  };
-
-  const setInitialOrientation = async () => {
-    const initialOrientation = await ScreenOrientation.getOrientationAsync();
-    updateOrientation(initialOrientation);
+    setIsLandscape(orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT);
   };
 
   useEffect(() => {
     if (Platform.OS !== "web") {
-      // allow rotattion to change the layout on non-web platforms
       ScreenOrientation.unlockAsync();
-
-      // get initial orientation
-      setInitialOrientation();
-
-      // listen to the orientation change event
-      const subscription = ScreenOrientation.addOrientationChangeListener(
-        (event) => {
-          updateOrientation(event.orientationInfo.orientation);
-
-          console.log("Orientation changed: ", event.orientationInfo);
-        }
-      );
-
-      return () => {
-        // remove the listener when the component is unmounted
-        ScreenOrientation.removeOrientationChangeListener(subscription);
-      };
+      const subscription = ScreenOrientation.addOrientationChangeListener(event => updateOrientation(event.orientationInfo.orientation));
+      return () => ScreenOrientation.removeOrientationChangeListener(subscription);
     }
   }, []);
 
-
   useEffect(() => {
-    if (!weatherData && zipCode) {
-      fetchWeather(zipCode);
+    if (!passedZipCode) {
+      requestLocationPermission();  // Only request location if no zip code is passed
+    } else {
+      fetchWeather(passedZipCode);
     }
-  }, [zipCode, weatherData]);
+  }, [passedZipCode]);
 
   useEffect(() => {
-    if (Array.isArray(favorites)) {
+    if (zipCode && Array.isArray(favorites)) {
       setIsFavorite(favorites.some(fav => fav.zipcode === zipCode));
     }
-  }, [favorites, zipCode]);
+  }, [zipCode, favorites]);
+
+  const requestLocationPermission = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission to access location was denied');
+      setPermissionsGranted(false);
+      return;
+    }
+
+    setPermissionsGranted(true);
+    getCurrentLocation();
+  };
+
+  const getCurrentLocation = async () => {
+    setLoading(true);
+    let location = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = location.coords;
+    fetchZipCodeFromCoords(latitude, longitude);
+  };
+
+  const fetchZipCodeFromCoords = async (lat, lon) => {
+    const url = `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lon}&apiKey=${GEOAPIFY_API_KEY}`;
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      const postalCode = data.features[0]?.properties?.postcode;
+      if (postalCode) {
+        setZipCode(postalCode);
+        fetchWeather(postalCode);
+      } else {
+        Alert.alert('Could not retrieve ZIP code from location');
+      }
+    } catch (error) {
+      console.error('Error fetching ZIP code:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchWeather = async (zip) => {
     setLoading(true);
     const trimmedZip = zip.includes('-') ? zip.split('-')[0] : zip;
-    const url = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${trimmedZip}&days=3&aqi=no&alerts=no`;
+    console.log('fetchWeather zipcode:', trimmedZip);
+    const url = `http://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${trimmedZip}&days=3&aqi=no&alerts=no`;
 
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error('Invalid zip code or API call failed.');
       const data = await res.json();
+      console.log('Weather data:', data);
       setWeatherData(data);
-      setIsFavorite(favorites.some(fav => fav.zipcode === zipCode));
+      console.log('Favorites:', favorites);
+      if (Array.isArray(favorites)) {
+        setIsFavorite(favorites.some(fav => fav.zipcode === zipCode));
+      }
     } catch (error) {
       console.error("Error fetching weather:", error);
     } finally {
@@ -99,15 +113,14 @@ export default function WeatherScreen() {
 
   const toggleFavorite = () => {
     if (isFavorite) {
-      const newFavorites = favorites.filter(fav => fav.zipcode !== zipCode);
-      setFavorites(newFavorites);
+      setFavorites(favorites.filter(fav => fav.zipcode !== zipCode));
     } else {
       const newFavorite = {
         zipcode: zipCode,
         location: {
           name: weatherData.location.name,
           region: weatherData.location.region,
-        }
+        },
       };
       setFavorites([...favorites, newFavorite]);
     }
@@ -117,16 +130,12 @@ export default function WeatherScreen() {
   const navigateToHourlyForecast = (forecastDay) => {
     router.push({
       pathname: "/weather/hourly-forecast",
-      params: { 
-        forecast: JSON.stringify(forecastDay.hour),
-        isCelsius: isCelsius.toString(),
-      },
+      params: { forecast: JSON.stringify(forecastDay.hour), isCelsius: isCelsius.toString() },
     });
   };
 
-  
   return (
-    <ScrollView contentContainerStyle={[styles.container, isLandscape ? styles.portraitContainer : styles.landscapeContainer]}>
+    <ScrollView contentContainerStyle={[styles.container, isLandscape ? styles.landscapeContainer : styles.portraitContainer]}>
       <View style={styles.searchContainer}>
         <FontAwesome name="search" size={20} color="gray" style={styles.searchIcon} />
         <Pressable style={styles.searchButton} onPress={() => router.push('/weather/search')}>
@@ -134,13 +143,7 @@ export default function WeatherScreen() {
         </Pressable>
       </View>
 
-      {!weatherData && (
-        <Text style={styles.initialMessage}>Touch the search bar to enter a zip code</Text>
-      )}
-
-      {loading && (
-        <ActivityIndicator size="large" color="blue" />
-      )}
+      {loading && <ActivityIndicator size="large" color="blue" />}
 
       {weatherData && (
         <>
@@ -170,19 +173,19 @@ export default function WeatherScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1, 
+    flexGrow: 1,
     padding: 20,
-    backgroundColor: '#fffff',
+    backgroundColor: '#fff',
   },
   portraitContainer: {
-    flexDirection: 'column', 
-    justifyContent: 'flex-start', 
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingVertical: 20,
   },
   landscapeContainer: {
-    flexDirection: 'column', 
-    justifyContent: 'flex-start', 
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingVertical: 20,
   },
@@ -204,11 +207,6 @@ const styles = StyleSheet.create({
   searchButtonText: {
     color: '#AAA',
     fontSize: 18,
-  },
-  initialMessage: {
-    fontSize: 18,
-    marginBottom: 20,
-    textAlign: 'center',
   },
   switchButton: {
     padding: 10,
