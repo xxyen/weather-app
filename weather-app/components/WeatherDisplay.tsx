@@ -7,7 +7,7 @@ const WeatherDisplay = ({ weatherData, isCelsius, isFavorite, toggleFavorite, is
   return (
     <View style={[styles.weatherDisplay, isLandscape ? styles.landscapeContainer : styles.portraitContainer]}>
       
-      {/* Top Row: Favorite, Temperature, Location, Feels Like (Landscape Mode) */}
+      {/* Top Row: Favorite, Temperature, Location, Feels Like */}
       <View style={isLandscape ? styles.topRowLandscape : styles.tempLocationContainer}>
         {/* Favorite Section */}
         {isLandscape && (
@@ -21,6 +21,14 @@ const WeatherDisplay = ({ weatherData, isCelsius, isFavorite, toggleFavorite, is
           <Text style={styles.tempText}>
             {weatherData ? (isCelsius ? `${weatherData.current.temp_c}°C` : `${weatherData.current.temp_f}°F`) : '-'}
           </Text>
+
+          {/* Feels Like Text for Portrait Mode */}
+          {!isLandscape && (
+            <Text style={styles.feelsLikeTextPortrait}>
+              Feels Like {weatherData ? (isCelsius ? `${weatherData.current.feelslike_c}°C` : `${weatherData.current.feelslike_f}°F`) : '-'}
+            </Text>
+          )}
+
           <Text style={styles.locationName}>
             {weatherData ? `${weatherData.location.name}` : '-'}
           </Text>
@@ -29,7 +37,7 @@ const WeatherDisplay = ({ weatherData, isCelsius, isFavorite, toggleFavorite, is
           </Text>
         </View>
 
-        {/* Feels Like and Switch Metric/Imperial */}
+        {/* Feels Like and Switch Metric/Imperial for Landscape Mode */}
         {isLandscape && (
           <View style={styles.feelsLikeContainerLandscape}>
             <Text style={styles.feelsLikeText}>
@@ -104,7 +112,7 @@ const styles = StyleSheet.create({
   locationName: {
     fontSize: 32,
     marginVertical: 5,
-    marginTop: 20,
+    marginTop: 10,
   },
   locationRegion: {
     fontSize: 24,
@@ -131,6 +139,10 @@ const styles = StyleSheet.create({
   },
   feelsLikeText: {
     fontSize: 20,
+  },
+  feelsLikeTextPortrait: {
+    fontSize: 20,
+    marginVertical: 5,
   },
   switchButton: {
     padding: 10,

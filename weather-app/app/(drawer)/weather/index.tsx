@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import { Pressable, ActivityIndicator, StyleSheet, Platform, ScrollView, Alert } from "react-native";
 import * as Location from 'expo-location';
+import * as SplashScreen from 'expo-splash-screen'; 
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import WeatherDisplay from "../../../components/WeatherDisplay";
@@ -12,17 +13,20 @@ import * as ScreenOrientation from "expo-screen-orientation";
 const GEOAPIFY_API_KEY = '3229808f86fe4c93a92f063868e65f17';
 const WEATHER_API_KEY = 'c850ed0f8c7244de956214046240309';
 
+SplashScreen.preventAutoHideAsync(); 
+
 export default function WeatherScreen() {
   const router = useRouter();
   const { zipCode: passedZipCode } = useLocalSearchParams();
   const [zipCode, setZipCode] = useState(passedZipCode || '');
   const [weatherData, setWeatherData] = useState(null);
   const [isCelsius, setIsCelsius] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); 
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const { favorites, setFavorites } = useContext(FavoritesContext);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [appIsReady, setAppIsReady] = useState(false);  
 
   const updateOrientation = (orientation: ScreenOrientation.Orientation) => {
     setIsLandscape(orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT);
@@ -50,11 +54,19 @@ export default function WeatherScreen() {
     }
   }, [zipCode, favorites]);
 
+
+  useEffect(() => {
+    if (appIsReady && !loading) {
+      SplashScreen.hideAsync();
+    }
+  }, [appIsReady, loading]);
+
   const requestLocationPermission = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission to access location was denied');
       setPermissionsGranted(false);
+      setAppIsReady(true);  
       return;
     }
 
@@ -85,11 +97,14 @@ export default function WeatherScreen() {
       console.error('Error fetching ZIP code:', error);
     } finally {
       setLoading(false);
+      // setAppIsReady(true); 
     }
   };
 
   const fetchWeather = async (zip) => {
     setLoading(true);
+    // setAppIsReady(false); 
+
     const trimmedZip = zip.includes('-') ? zip.split('-')[0] : zip;
     console.log('fetchWeather zipcode:', trimmedZip);
     const url = `http://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${trimmedZip}&days=3&aqi=no&alerts=no`;
@@ -108,6 +123,7 @@ export default function WeatherScreen() {
       console.error("Error fetching weather:", error);
     } finally {
       setLoading(false);
+      setAppIsReady(true); 
     }
   };
 
