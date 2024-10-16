@@ -1,53 +1,76 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import { Text, View } from "@/components/Themed"; 
-import { useThemeColor } from "@/components/Themed";
+import { Text } from "@/components/Themed"; 
 
-const WeatherDisplay = ({ weatherData, isCelsius, isFavorite, toggleFavorite }) => {
+const WeatherDisplay = ({ weatherData, isCelsius, isFavorite, toggleFavorite, isLandscape }) => {
   return (
-    <View style={styles.weatherDisplay}>
-      <Text style={styles.tempText}>
-        {weatherData ? (isCelsius ? `${weatherData.current.temp_c}°C` : `${weatherData.current.temp_f}°F`) : '-'}
-      </Text>
-      <Text style={styles.feelsLikeText}>
-        Feels Like {weatherData ? (isCelsius ? `${weatherData.current.feelslike_c}°C` : `${weatherData.current.feelslike_f}°F`) : '-'}
-      </Text>
-
-      <Text style={styles.locationName}>
-        {weatherData ? `${weatherData.location.name}` : '-'}
-      </Text>
-      <Text style={styles.locationRegion}>
-        {weatherData ? `${weatherData.location.region}` : '-'}
-      </Text>
-
-      <View style={styles.favoriteSection}>
-        <Pressable onPress={toggleFavorite}>
-          <FontAwesome name={isFavorite ? 'heart' : 'heart-o'} size={20} color="red" />
-        </Pressable>
-
-        {!isFavorite && (
-          <Pressable style={styles.favoriteButton} onPress={toggleFavorite}>
-            <Text style={styles.favoriteButtonText}>Add Favorite</Text>
+    <View style={[styles.weatherDisplay, isLandscape ? styles.landscapeContainer : styles.portraitContainer]}>
+      
+      {/* Top Row: Favorite, Temperature, Location, Feels Like (Landscape Mode) */}
+      <View style={isLandscape ? styles.topRowLandscape : styles.tempLocationContainer}>
+        {/* Favorite Section */}
+        {isLandscape && (
+          <Pressable onPress={toggleFavorite} style={styles.favoriteIconLandscape}>
+            <FontAwesome name={isFavorite ? 'heart' : 'heart-o'} size={20} color="red" />
           </Pressable>
+        )}
+
+        {/* Temperature and Location */}
+        <View style={styles.tempLocationContainer}>
+          <Text style={styles.tempText}>
+            {weatherData ? (isCelsius ? `${weatherData.current.temp_c}°C` : `${weatherData.current.temp_f}°F`) : '-'}
+          </Text>
+          <Text style={styles.locationName}>
+            {weatherData ? `${weatherData.location.name}` : '-'}
+          </Text>
+          <Text style={styles.locationRegion}>
+            {weatherData ? `${weatherData.location.region}` : '-'}
+          </Text>
+        </View>
+
+        {/* Feels Like and Switch Metric/Imperial */}
+        {isLandscape && (
+          <View style={styles.feelsLikeContainerLandscape}>
+            <Text style={styles.feelsLikeText}>
+              Feels Like {weatherData ? (isCelsius ? `${weatherData.current.feelslike_c}°C` : `${weatherData.current.feelslike_f}°F`) : '-'}
+            </Text>
+            <Pressable style={styles.switchButton} onPress={toggleFavorite}>
+              <Text style={styles.switchButtonText}>{`Switch to ${isCelsius ? 'Imperial' : 'Metric'}`}</Text>
+            </Pressable>
+          </View>
         )}
       </View>
 
-      <View style={styles.sunWindContainer}>
+      {/* Favorite Button (for portrait mode) */}
+      {!isLandscape && (
+        <View style={styles.favoriteSection}>
+          <Pressable onPress={toggleFavorite}>
+            <FontAwesome name={isFavorite ? 'heart' : 'heart-o'} size={20} color="red" />
+          </Pressable>
+          {!isFavorite && (
+            <Pressable style={styles.favoriteButton} onPress={toggleFavorite}>
+              <Text style={styles.favoriteButtonText}>Add Favorite</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {/* Bottom Row: Sunrise/Sunset and Wind */}
+      <View style={isLandscape ? styles.sunWindContainerLandscape : styles.sunWindContainerPortrait}>
         <View style={styles.box}>
           <Text style={styles.grayText}>Sunrise: </Text>
           <Text style={styles.boldText}>{weatherData ? weatherData.forecast.forecastday[0].astro.sunrise : '-'}</Text>
           <Text style={styles.grayText}>Sunset: </Text>
           <Text style={styles.boldText}>{weatherData ? weatherData.forecast.forecastday[0].astro.sunset : '-'}</Text>
         </View>
-        <View style={styles.box2}>
+        <View style={styles.box}>
           <Text style={styles.windTextWithShadow}>Wind: </Text>
           <Text style={styles.boldText}>{weatherData ? `${weatherData.current.wind_mph}` : '-'}</Text>
           <Text style={styles.boldText}>MPH</Text>
           <Text style={styles.boldText}>{weatherData ? weatherData.current.wind_dir : '-'}</Text>
         </View>
       </View>
-
     </View>
   );
 };
@@ -58,12 +81,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
+  portraitContainer: {
+    flexDirection: 'column', 
+  },
+  landscapeContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  topRowLandscape: {
+    flexDirection: 'row', 
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  tempLocationContainer: {
+    alignItems: 'center', 
+  },
   tempText: {
     fontSize: 48,
-  },
-  feelsLikeText: {
-    fontSize: 20,
-    marginTop: 5,
   },
   locationName: {
     fontSize: 32,
@@ -78,9 +114,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    width: 122,
-    height: 25,
-    justifyContent: 'center',
+  },
+  favoriteIconLandscape: {
+    marginRight: 20,
   },
   favoriteButton: {
     marginLeft: 10,
@@ -88,11 +124,33 @@ const styles = StyleSheet.create({
   favoriteButtonText: {
     color: '#0A84FF',
   },
-  sunWindContainer: {
+  feelsLikeContainerLandscape: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 20, 
+  },
+  feelsLikeText: {
+    fontSize: 20,
+  },
+  switchButton: {
+    padding: 10,
+  },
+  switchButtonText: {
+    color: '#0A84FF',
+  },
+  sunWindContainerPortrait: {
     flexDirection: 'column',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 5,
+    width: '100%',
+  },
+  sunWindContainerLandscape: {
+    flexDirection: 'row', 
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginTop: 5,
+    width: '100%',
   },
   box: {
     flexDirection: 'row',
@@ -102,18 +160,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     justifyContent: 'space-between',
     width: 358,
-    height: 51,
-  },
-  box2: {
-    flexDirection: 'row',
-    backgroundColor: '#A7D3FF',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    paddingHorizontal: 60,
-    justifyContent: 'space-between',
-    width: 358,
-    height: 51,
   },
   grayText: {
     color: '#777', 

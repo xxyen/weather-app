@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { Pressable, ActivityIndicator, StyleSheet } from "react-native";
+import { Pressable, ActivityIndicator, StyleSheet, Platform, ScrollView } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router"; 
 import { FontAwesome } from "@expo/vector-icons";
 import WeatherDisplay from "../../../components/WeatherDisplay";
@@ -7,6 +7,8 @@ import ForecastTable from "../../../components/ForecastTable";
 import { FavoritesContext } from "@/hooks/FavoritesContext";
 import { Text, View } from "@/components/Themed";  
 import { useThemeColor } from "@/components/Themed";
+import * as ScreenOrientation from "expo-screen-orientation";
+
 
 export default function WeatherScreen() {
   const router = useRouter();
@@ -19,6 +21,51 @@ export default function WeatherScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const apiKey = 'c850ed0f8c7244de956214046240309'; 
+
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  const updateOrientation = (orientation: ScreenOrientation.Orientation) => {
+    if (
+      orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+      orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
+    ) {
+      console.log("Landscape mode");
+      setIsLandscape(true);
+    } else {
+      console.log("Portrait mode");
+      setIsLandscape(false);
+    }
+  };
+
+  const setInitialOrientation = async () => {
+    const initialOrientation = await ScreenOrientation.getOrientationAsync();
+    updateOrientation(initialOrientation);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      // allow rotattion to change the layout on non-web platforms
+      ScreenOrientation.unlockAsync();
+
+      // get initial orientation
+      setInitialOrientation();
+
+      // listen to the orientation change event
+      const subscription = ScreenOrientation.addOrientationChangeListener(
+        (event) => {
+          updateOrientation(event.orientationInfo.orientation);
+
+          console.log("Orientation changed: ", event.orientationInfo);
+        }
+      );
+
+      return () => {
+        // remove the listener when the component is unmounted
+        ScreenOrientation.removeOrientationChangeListener(subscription);
+      };
+    }
+  }, []);
+
 
   useEffect(() => {
     if (!weatherData && zipCode) {
@@ -79,7 +126,7 @@ export default function WeatherScreen() {
 
   
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, isLandscape ? styles.portraitContainer : styles.landscapeContainer]}>
       <View style={styles.searchContainer}>
         <FontAwesome name="search" size={20} color="gray" style={styles.searchIcon} />
         <Pressable style={styles.searchButton} onPress={() => router.push('/weather/search')}>
@@ -102,6 +149,7 @@ export default function WeatherScreen() {
             isCelsius={isCelsius}
             isFavorite={isFavorite}
             toggleFavorite={toggleFavorite}
+            isLandscape={isLandscape}
           />
           <ForecastTable
             forecast={weatherData.forecast.forecastday}
@@ -116,15 +164,27 @@ export default function WeatherScreen() {
           <Text style={styles.switchButtonText}>{`Switch to ${isCelsius ? 'Imperial' : 'Metric'}`}</Text>
         </Pressable>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1, 
     padding: 20,
-    // backgroundColor: '#f5f5f5',
+    backgroundColor: '#fffff',
+  },
+  portraitContainer: {
+    flexDirection: 'column', 
+    justifyContent: 'flex-start', 
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  landscapeContainer: {
+    flexDirection: 'column', 
+    justifyContent: 'flex-start', 
+    alignItems: 'center',
+    paddingVertical: 20,
   },
   searchIcon: {
     marginRight: 10,
