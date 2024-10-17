@@ -1,12 +1,13 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { Pressable, ActivityIndicator, StyleSheet, Platform, ScrollView, Alert } from "react-native";
 import * as Location from 'expo-location';
 import * as SplashScreen from 'expo-splash-screen'; 
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import WeatherDisplay from "../../../components/WeatherDisplay";
 import ForecastTable from "../../../components/ForecastTable";
 import { FavoritesContext } from "@/hooks/FavoritesContext";
+import { BackgroundContext } from "@/hooks/backgroundContext"; 
 import { Text, View } from "@/components/Themed";
 import * as ScreenOrientation from "expo-screen-orientation";
 
@@ -24,12 +25,18 @@ export default function WeatherScreen() {
   const [loading, setLoading] = useState(true); 
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const { favorites, setFavorites } = useContext(FavoritesContext);
+  const { backgrounds, backgroundUpdated, setBackgroundUpdated } = useContext(BackgroundContext); // Add backgroundUpdated and setBackgroundUpdated
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [appIsReady, setAppIsReady] = useState(false);  
+  const [backgroundImage, setBackgroundImage] = useState(null);
+  const [invertTextColor, setInvertTextColor] = useState(false);
 
-  const updateOrientation = (orientation: ScreenOrientation.Orientation) => {
-    setIsLandscape(orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT);
+  const updateOrientation = (orientation) => {
+    setIsLandscape(
+      orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
+      orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
+    );
   };
 
   useEffect(() => {
@@ -40,9 +47,16 @@ export default function WeatherScreen() {
     }
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadBackgroundFromContext(zipCode); 
+      setBackgroundUpdated(false); 
+    }, [zipCode, backgroundUpdated])
+  );
+
   useEffect(() => {
     if (!passedZipCode) {
-      requestLocationPermission();  // Only request location if no zip code is passed
+      requestLocationPermission();  
     } else {
       fetchWeather(passedZipCode);
     }
@@ -52,8 +66,8 @@ export default function WeatherScreen() {
     if (zipCode && Array.isArray(favorites)) {
       setIsFavorite(favorites.some(fav => fav.zipcode === zipCode));
     }
+    loadBackgroundFromContext(zipCode); 
   }, [zipCode, favorites]);
-
 
   useEffect(() => {
     if (appIsReady && !loading) {
@@ -97,25 +111,19 @@ export default function WeatherScreen() {
       console.error('Error fetching ZIP code:', error);
     } finally {
       setLoading(false);
-      // setAppIsReady(true); 
     }
   };
 
   const fetchWeather = async (zip) => {
     setLoading(true);
-    // setAppIsReady(false); 
-
     const trimmedZip = zip.includes('-') ? zip.split('-')[0] : zip;
-    console.log('fetchWeather zipcode:', trimmedZip);
     const url = `http://api.weatherapi.com/v1/forecast.json?key=${WEATHER_API_KEY}&q=${trimmedZip}&days=3&aqi=no&alerts=no`;
 
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error('Invalid zip code or API call failed.');
       const data = await res.json();
-      console.log('Weather data:', data);
       setWeatherData(data);
-      console.log('Favorites:', favorites);
       if (Array.isArray(favorites)) {
         setIsFavorite(favorites.some(fav => fav.zipcode === zipCode));
       }
@@ -143,10 +151,31 @@ export default function WeatherScreen() {
     setIsFavorite(!isFavorite);
   };
 
-  const navigateToHourlyForecast = (forecastDay) => {
+  const loadBackgroundFromContext = (zip) => {
+    if (backgrounds && backgrounds[zip]) {
+      setBackgroundImage(backgrounds[zip].image);
+      setInvertTextColor(backgrounds[zip].invertTextColor);
+    } else {
+      // Clear background if none exists
+      setBackgroundImage(null);
+      setInvertTextColor(false);
+    }
+    console.log("Background image loaded:", backgroundImage); // For debugging
+  };
+
+  const navigateToBackground = () => {
     router.push({
-      pathname: "/weather/hourly-forecast",
-      params: { forecast: JSON.stringify(forecastDay.hour), isCelsius: isCelsius.toString() },
+      pathname: "/weather/background-image",
+      params: {
+        zipCode,
+        temperature: weatherData.current.temp_c,
+        feelsLike: weatherData.current.feelslike_c,
+        locationName: weatherData.location.name,
+        locationRegion: weatherData.location.region,
+        isCelsius,
+        backgroundImage,
+        invertTextColor,
+      },
     });
   };
 
@@ -168,17 +197,27 @@ export default function WeatherScreen() {
             isCelsius={isCelsius}
             isFavorite={isFavorite}
             toggleFavorite={toggleFavorite}
+            toggleUnits={() => setIsCelsius(!isCelsius)}  // Pass toggleUnits to WeatherDisplay
             isLandscape={isLandscape}
+            backgroundImage={backgroundImage}
+            invertTextColor={invertTextColor}
+            navigateToBackground={navigateToBackground}
           />
+
           <ForecastTable
             forecast={weatherData.forecast.forecastday}
             isCelsius={isCelsius}
-            onDayPress={navigateToHourlyForecast}
+            onDayPress={(forecastDay) => {
+              router.push({
+                pathname: "/weather/hourly-forecast",
+                params: { forecast: JSON.stringify(forecastDay.hour), isCelsius: isCelsius.toString() },
+              });
+            }}
           />
         </>
       )}
 
-      {weatherData && (
+      {weatherData && !isLandscape && (
         <Pressable style={styles.switchButton} onPress={() => setIsCelsius(!isCelsius)}>
           <Text style={styles.switchButtonText}>{`Switch to ${isCelsius ? 'Imperial' : 'Metric'}`}</Text>
         </Pressable>

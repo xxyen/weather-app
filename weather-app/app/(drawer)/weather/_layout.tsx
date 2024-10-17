@@ -25,6 +25,13 @@ export default function HomeLayout() {
           presentation: 'modal', 
         }}
       />
+
+      <Stack.Screen
+        name="background-image"
+        options={{
+          title: "Background Image",
+        }}
+      />
     </Stack>
   );
 }
