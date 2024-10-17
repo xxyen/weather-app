@@ -81,9 +81,6 @@ const WeatherDisplay = ({ weatherData, isCelsius, isFavorite, toggleFavorite, to
             <Text style={[styles.tempTextLandscape, textStyle]}>
               {weatherData ? (isCelsius ? `${weatherData.current.temp_c}°C` : `${weatherData.current.temp_f}°F`) : '-'}
             </Text>
-            {/* <Text style={[styles.locationNameLandscape, textStyle]}>
-              {weatherData ? `${weatherData.location.name}` : '-'}
-            </Text> */}
             <Text style={[styles.locationRegionLandscape, textStyle]}>
               {weatherData ? `${weatherData.location.name}, ${weatherData.location.region}` : '-'}
             </Text>

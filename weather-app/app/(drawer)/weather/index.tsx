@@ -25,14 +25,15 @@ export default function WeatherScreen() {
   const [loading, setLoading] = useState(true); 
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const { favorites, setFavorites } = useContext(FavoritesContext);
-  const { backgrounds, backgroundUpdated, setBackgroundUpdated } = useContext(BackgroundContext); // Add backgroundUpdated and setBackgroundUpdated
+  const { backgrounds, backgroundUpdated, setBackgroundUpdated } = useContext(BackgroundContext); 
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [appIsReady, setAppIsReady] = useState(false);  
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [invertTextColor, setInvertTextColor] = useState(false);
 
-  const updateOrientation = (orientation) => {
+  const updateOrientation = async () => {
+    const orientation = await ScreenOrientation.getOrientationAsync();
     setIsLandscape(
       orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
       orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
@@ -42,13 +43,14 @@ export default function WeatherScreen() {
   useEffect(() => {
     if (Platform.OS !== "web") {
       ScreenOrientation.unlockAsync();
-      const subscription = ScreenOrientation.addOrientationChangeListener(event => updateOrientation(event.orientationInfo.orientation));
+      const subscription = ScreenOrientation.addOrientationChangeListener(event => updateOrientation());
       return () => ScreenOrientation.removeOrientationChangeListener(subscription);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
+      updateOrientation();
       loadBackgroundFromContext(zipCode); 
       setBackgroundUpdated(false); 
     }, [zipCode, backgroundUpdated])
@@ -156,11 +158,9 @@ export default function WeatherScreen() {
       setBackgroundImage(backgrounds[zip].image);
       setInvertTextColor(backgrounds[zip].invertTextColor);
     } else {
-      // Clear background if none exists
       setBackgroundImage(null);
       setInvertTextColor(false);
     }
-    console.log("Background image loaded:", backgroundImage); // For debugging
   };
 
   const navigateToBackground = () => {
@@ -197,7 +197,7 @@ export default function WeatherScreen() {
             isCelsius={isCelsius}
             isFavorite={isFavorite}
             toggleFavorite={toggleFavorite}
-            toggleUnits={() => setIsCelsius(!isCelsius)}  // Pass toggleUnits to WeatherDisplay
+            toggleUnits={() => setIsCelsius(!isCelsius)} 
             isLandscape={isLandscape}
             backgroundImage={backgroundImage}
             invertTextColor={invertTextColor}

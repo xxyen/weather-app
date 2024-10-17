@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: 20,
-    alignItems: 'center', // Center the button horizontally
+    alignItems: 'center', 
   },
   chooseImageButton: {
     padding: 10,

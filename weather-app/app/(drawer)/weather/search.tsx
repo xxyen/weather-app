@@ -1,10 +1,9 @@
 import React, { useState, useContext } from "react";
-import { TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { TextInput, Pressable, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { FavoritesContext } from "@/hooks/FavoritesContext";
 import { useRouter } from "expo-router";
 import FavoritesManager from "../../../components/FavoritesManager"; 
 import { Text, View } from "@/components/Themed"; 
-import { useThemeColor } from "@/components/Themed";
 
 export default function SearchScreen() {
   const [zipCode, setZipCode] = useState("");
@@ -61,56 +60,62 @@ export default function SearchScreen() {
   };
 
   return (
-    <View style={styles.modalContainer}>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.searchBoxModal}
-          placeholder="Enter Zip Code"
-          value={zipCode}
-          onChangeText={searchWeather}
-        />
-        <Pressable style={styles.cancelButton} onPress={() => router.back()}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </Pressable>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="blue" />
-      ) : (
-        <View style={styles.resultsContainer}>
-          <Text style={styles.sectionTitle}>Search Results:</Text>
-          {searchResults ? (
-            <Pressable onPress={() => selectLocation(zipCode)} style={styles.resultContainer}>
-              <Text style={styles.resultLocationName}>{searchResults.location.name}</Text>
-              <Text style={styles.resultLocationRegion}>
-                {`${searchResults.location.region} (${zipCode})`}
-              </Text>
-              <View style={styles.resultSeparator} />
-            </Pressable>
-          ) : (
-            <Text style={styles.resultText}>Location not found.</Text>
-          )}
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.modalContainer}>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.searchBoxModal}
+            placeholder="Enter Zip Code"
+            value={zipCode}
+            onChangeText={searchWeather}
+          />
+          <Pressable style={styles.cancelButton} onPress={() => router.back()}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </Pressable>
         </View>
-      )}
 
-      <FavoritesManager
-        favorites={favorites}
-        removeFavorite={removeFavorite}
-        selectLocation={selectLocation}
-        setZipCode={setZipCode}
-        loading={loading}
-      />
-    </View>
+        {loading ? (
+          <ActivityIndicator size="large" color="blue" />
+        ) : (
+          <View style={styles.resultsContainer}>
+            <Text style={styles.sectionTitle}>Search Results:</Text>
+            {searchResults ? (
+              <Pressable onPress={() => selectLocation(zipCode)} style={styles.resultContainer}>
+                <Text style={styles.resultLocationName}>{searchResults.location.name}</Text>
+                <Text style={styles.resultLocationRegion}>
+                  {`${searchResults.location.region} (${zipCode})`}
+                </Text>
+                <View style={styles.resultSeparator} />
+              </Pressable>
+            ) : (
+              <Text style={styles.resultText}>Location not found.</Text>
+            )}
+          </View>
+        )}
+
+        <FavoritesManager
+          favorites={favorites}
+          removeFavorite={removeFavorite}
+          selectLocation={selectLocation}
+          setZipCode={setZipCode}
+          loading={loading}
+        />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    padding: 20,
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "flex-start",
     alignItems: "center",
-    // backgroundColor: "#fff",
+  },
+  modalContainer: {
+    padding: 20,
+    width: '100%',
+    justifyContent: "flex-start",
+    alignItems: "center",
   },
   inputContainer: {
     flexDirection: 'row',
